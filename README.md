@@ -1,5 +1,5 @@
 # Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour
-This repository is an example for the structure and content that a CLTL thesis project may have. 
+TODO: rewrite readme (all code is uploaded)
 
 # Overview
 This repository assumes a Python project, with an Open License (MIT style). If any of these aspects are different from your project please make sure to change those accordingly.
