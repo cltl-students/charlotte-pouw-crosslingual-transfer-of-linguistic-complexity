@@ -1,4 +1,4 @@
-# sample-thesis-project
+# Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour
 This repository is an example for the structure and content that a CLTL thesis project may have. 
 
 # Overview
