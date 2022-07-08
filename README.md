@@ -1,49 +1,38 @@
 # Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour
-TODO: rewrite readme (all code is uploaded)
+Repository for the research master thesis project "Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour". The work was carried out by Charlotte Pouw and supervised by dr. Lisa Beinborn.
 
-# Overview
-This repository assumes a Python project, with an Open License (MIT style). If any of these aspects are different from your project please make sure to change those accordingly.
-Please feel free to clone/fork this repository and use it as a template for your thesis.
+# Abstract
+This thesis investigates if a multilingual transformer model (XLM-RoBERTa, Conneau et al., 2020) develops a sensitivity to linguistic complexity when it learns to predict patterns of human reading behaviour. After training the model on eye-tracking data of English readers, we find that it can accurately predict eye movement behaviour associated with 1) sentences that are more complex than those seen during training, and 2) languages that are not seen seen during training. These generalization abilities indicate that the model established a link between linguistic complexity and eye movement patterns, and that the learned correlations can be transferred to other languages. We provide further evidence for this by probing the linguistic knowledge that is encoded in the model's final-layer representations, both before and after fine-tuning on eye-tracking data. We find that features associated with the structural complexity of a sentence are better encoded after fine-tuning.
 
-# Project structure
+# Structure
+
+## `analyses`
+This folder contains notebooks to analyse the data and to plot the results.
+
+## `data`
+
+## `preprocessing`
+
+## `results`
+
+## `scripts`
+
+## `src`
+
+# Running the code
+
+Once all data has been preprocessed, it can be used to finetune XLM-RoBERTa (or another transformer model). With the following command, the model is trained and evaluated on the English GECO data and learns four eye-tracking features simultaneously (first-pass duration, fixation count, total fixation duration, regression duration):
 
 ```
-thesis-project
-└───data
-│       │   sample_data.csv 
-└───results
-│       │   sample_results.png 
-└───src
-│   └───utils
-│       │   plotting.py
-│   │   main.py
-│   .gitignore
-│   LICENSE
-│   README.md
-│   requirements.tx
+python finetune_xlm.py --data_dir ./data/geco/train_test --label_columns scaled_first_pass_dur scaled_fix_count scaled_tot_fix_dur scaled_tot_regr_from_dur --run_name train-xlm-on-geco
+```
+To evaluate the model on any language from MECO, place the file `test.csv` corresponding to the language of interest in the `train_test` folder (e.g. `data/meco/files_per_language/Dutch/test.csv`).
+
+To probe the linguistic knowledge that is encoded in the model's representations, the same script can be used. In this case, the encoder model should be frozen, so that only the final regression layer is fine-tuned. The following command probes the linguistic feature "lexical density", using the first fold of the English PUD data:
+```
+python finetune_xlm.py --freeze_model --data_dir ./data/pud/train_test_en/fold_0 --label_columns scaled_lexical_density --run_name probe-lexical-density
 ```
 
-# To Do
-Once you start, please go through the following steps to tailor this template to your project
-
-## Thesis report
-You may decide to upload your report here directly, or to simply add a reference to where the report is hosted (e.g. Overleaf)
-- [ ] Add a reference to the thesis report
-
-## Data 
-To ensure reproducibility, Yu need to provide the data your project uses.
-- [ ] Add your data in the data folder
-
-Sometimes, sharing sharing data is not straightforward. For example, there may be restrictions regarding with whom or how you can share the data you have. Some other times, the data you are using is open and easily accessible from other sites, in which case you might want to point directly to the original source. Either way, if this is the case for you please 
-- [ ] Add the data folder to ``.gitignore`` in order to avoid commiting these files to Github. For this you can simply uncomment the last line in the ``.gitignore`` file  
-```
-# Tailored ignored files
-data/*
-```
-- [ ] Make sure to add a ``README.md`` file inside the data folder, where you explain in detail how to obtain and structure the data
-
-## README
-- [ ] Add instructions on how to set up the project, how to run your code and what to expect as an output.
 
 
 
