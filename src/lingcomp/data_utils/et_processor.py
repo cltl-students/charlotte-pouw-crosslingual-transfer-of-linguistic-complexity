@@ -9,7 +9,6 @@ from tqdm import tqdm
 import math
 
 from lingcomp.data_utils.const import (
-    DUNDEE_DATA_COLS,
     FILLNA_COLUMNS,
     GECO_DATA_COLS,
     GECO_MATERIAL_COLS,
@@ -19,7 +18,6 @@ from lingcomp.data_utils.const import (
     OUT_TYPES_WORD,
     TEXT_COLUMNS,
 )
-from lingcomp.data_utils.matlab_utils import read_zuco1_mat, read_zuco2_mat
 from lingcomp.script_utils import apply_parallel, read_tsv, save_tsv
 
 
@@ -71,7 +69,6 @@ class EyetrackingProcessor:
         self.out_types_word = out_types_word
         self.out_types_sentence = out_types_sentence
         self.preprocessed_data = None
-        logger.info(f"Unused arguments: {kwargs}")
         if not os.path.exists(self.out_preprocessed):
             logger.info("Preprocessing dataset, this may take some time...")
             self.create_preprocessed_dataset()
@@ -161,13 +158,10 @@ class EyetrackingProcessor:
     def get_sentence_data(self, participant="avg", min_len=-1, max_len=100000):
         # By default we average scores across participants
         data = self.get_word_data(participant)
-        #print(data.head())
+
         # Compute average for each word across participants
         group_sent = data.groupby("sentence_id", sort=False, as_index=False)
         scores = group_sent.sum()
-
-        # print("SCORES:")
-        # print(scores.head())
 
         # Textual fields not considered in avg
         sentences = []
@@ -207,27 +201,27 @@ class EyetrackingProcessor:
 class GECOProcessor(EyetrackingProcessor):
     """ Reader that converts the GECO dataset in a preprocessed format. """
 
-    def __init__(self, data_dir, do_features=True, **kwargs):
+    def __init__(self, data_dir, **kwargs):
         # Named after original files from http://expsy.ugent.be/downloads/geco/
-        self.materials_path = os.path.join(data_dir, "DutchMaterials.xlsx")
+        self.materials_path = os.path.join(data_dir, "EnglishMaterials.xlsx")
         # Those are generated files provided in the repository
-        self.sentence_ids_path = os.path.join(data_dir, "geco_dutch_sentence_ids.tsv")
-        self.features_path = os.path.join(data_dir, "dutch_geco_features.tsv")
-        self.do_features = do_features
+        self.sentence_ids_path = os.path.join(data_dir, "geco_english_sentence_ids.tsv")
         super(GECOProcessor, self).__init__(
             data_dir,
-            data_filename="L1ReadingData.xlsx",
-            out_filename="preprocessed_geco_dutch.tsv",
-            ref_participant="pp01",
+            data_filename="MonolingualReadingData.xlsx",
+            out_filename="preprocessed_geco.tsv",
+            ref_participant="pp21",
             **kwargs,
         )
 
     def create_preprocessed_dataset(self):
         data = pd.read_excel(
             self.data_path, usecols=GECO_DATA_COLS, sheet_name="DATA", na_values=GECO_NA_VALUES, keep_default_na=False,
+            engine='openpyxl'
         )
         extra = pd.read_excel(
-            self.materials_path, sheet_name="ALL", na_values=["N/A"], keep_default_na=False, usecols=GECO_MATERIAL_COLS
+            self.materials_path, sheet_name="ALL", na_values=["N/A"], keep_default_na=False, usecols=GECO_MATERIAL_COLS,
+            engine='openpyxl'
         )
         sent_ids = read_tsv(self.sentence_ids_path)
         logger.info("Preprocessing values for the dataset...")
@@ -263,15 +257,15 @@ class GECOProcessor(EyetrackingProcessor):
         pos = [GECO_POS_MAP[x] if not pd.isnull(x) else GECO_POS_MAP["UNK"] for x in df["PART_OF_SPEECH"]]
         fix_prob = [1 - x for x in df["WORD_SKIP"]]
 
-        # fill in nans in sentence ids
-        new_sent_ids = []
-        saved_id = ''
-        for id in df["SENTENCE_ID"].tolist():
-            if math.isnan(id):
-                new_sent_ids.append(saved_id)
-            else:
-                new_sent_ids.append(id)
-                saved_id = id
+        # # fill in nans in sentence ids
+        # new_sent_ids = []
+        # saved_id = ''
+        # for id in df["SENTENCE_ID"].tolist():
+        #     if math.isnan(id):
+        #         new_sent_ids.append(saved_id)
+        #     else:
+        #         new_sent_ids.append(id)
+        #         saved_id = id
 
         # Format taken from Hollenstein et al. 2019 "NER at First Sight"
         out = pd.DataFrame(
@@ -279,8 +273,8 @@ class GECOProcessor(EyetrackingProcessor):
                 # Identifiers
                 "participant": df["PP_NR"],
                 "text_id": text_id,  # PART-TRIAL for GECO
-                #"sentence_id": df["SENTENCE_ID"],  # Absolute sentence position for GECO
-                "sentence_id": new_sent_ids,
+                "sentence_id": df["SENTENCE_ID"],  # Absolute sentence position for GECO
+                #"sentence_id": new_sent_ids,
                 # AOI-level measures
                 "word_id": df["WORD_ID"],
                 "word": df["WORD"],
@@ -318,205 +312,10 @@ class GECOProcessor(EyetrackingProcessor):
 
     def get_sentence_data(self, participant="avg", min_len=5, max_len=45):
         scores = super(GECOProcessor, self).get_sentence_data(participant)
-        if self.do_features:
-            # Load ET features
-            et_features = pd.read_csv(self.features_path, sep="\t")
-            scores = pd.concat([scores.reset_index(drop=True), et_features.reset_index(drop=True)], axis=1)
-        # Filter based on whitespace token count (not the same as n_token from features!)
+        # Filter based on whitespace token count (not the same as n_tokens from features!)
         scores = scores[(scores["token_count"] <= max_len) & (scores["token_count"] >= min_len)]
         # Order columns in preprocessed shape
         return scores
-
-
-class DundeeProcessor(EyetrackingProcessor):
-    """Reader that converts the Dundee dataset in a preprocessed format.
-    We already start from a preprocessed version provided by Nora Hollenstein, available upon request.
-    """
-
-    def __init__(self, data_dir, **kwargs):
-        super(DundeeProcessor, self).__init__(
-            data_dir,
-            data_filename="EN_dundee.tsv",
-            out_filename="preprocessed_dundee.tsv",
-            ref_participant="sa",
-            **kwargs,
-        )
-
-    def create_preprocessed_dataset(self):
-        df = pd.read_csv(
-            self.data_path,
-            usecols=DUNDEE_DATA_COLS,
-            sep="\t",
-            quoting=csv.QUOTE_NONE,
-            engine="python",
-            na_values=[""],
-            keep_default_na=False,
-        )
-        # Clean up words since we need to rely on whitespaces for aligning
-        # sentences with tokens.
-        df["WORD"] = [str(w).replace(" ", "") for w in df["WORD"]]
-        logger.info("Preprocessing values for the dataset...")
-        keep_idx = []
-        curr_sent_id, curr_wnum = 1, 0
-        curr_val = df.loc[0, "SentenceID"]
-        curr_pp = df.loc[0, "Participant"]
-        sent_ids, word_ids = [], []
-        for _, r in tqdm(df.iterrows()):
-            # Tokens are split from punctuation for POS tagging, we need to reassemble regions.
-            # We use WNUM to check if the token belongs to the same region.
-            if r["WNUM"] == curr_wnum:
-                keep_idx.append(False)
-                continue
-            keep_idx.append(True)
-            curr_wnum = r["WNUM"]
-            # Advance sentence id
-            if r["SentenceID"] != curr_val:
-                curr_sent_id += 1
-                curr_val = r["SentenceID"]
-            # Data are ordered, so we can reset sentence indexes when switching participants
-            if r["Participant"] != curr_pp:
-                curr_sent_id = 1
-                curr_pp = r["Participant"]
-            sent_ids.append(curr_sent_id)
-            word_ids.append(f'{int(r["Itemno"])}-{int(r["SentenceID"])}-{int(r["ID"])}')
-        # Filter out duplicates
-        df = df[keep_idx]
-        out = pd.DataFrame(
-            {
-                # Identifiers
-                "participant": df["Participant"],
-                "text_id": df["Itemno"],
-                "sentence_id": sent_ids,
-                # AOI-level measures
-                "word_id": word_ids,
-                "word": df["WORD"],
-                "length": df["WLEN"],
-                "pos": df["UniversalPOS"],
-                # Basic measures
-                "fix_count": df["nFix"],
-                "fix_prob": df["Fix_prob"],
-                "mean_fix_dur": df["Mean_fix_dur"],
-                # Early measures
-                "first_fix_dur": df["First_fix_dur"],
-                "first_pass_dur": df["First_pass_dur"],
-                # Late measures
-                "tot_fix_dur": df["Tot_fix_dur"],
-                "refix_count": df["nRefix"],
-                "reread_prob": df["Re-read_prob"],
-                # Context measures
-                "tot_regr_from_dur": df["Tot_regres_from_dur"],
-                "n-2_fix_prob": df["n-2_fix_prob"],
-                "n-1_fix_prob": df["n-1_fix_prob"],
-                "n+1_fix_prob": df["n+1_fix_prob"],
-                "n+2_fix_prob": df["n+2_fix_prob"],
-                "n-2_fix_dur": df["n-2_fix_dur"],
-                "n-1_fix_dur": df["n-1_fix_dur"],
-                "n+1_fix_dur": df["n+1_fix_dur"],
-                "n+2_fix_dur": df["n+2_fix_dur"],
-            }
-        )
-        # Convert to correct data types
-        out = out.astype(self.out_types_word)
-        # Caching preprocessed dataset for next Processor calls
-        save_tsv(out, self.out_preprocessed)
-        logger.info(f"Dundee data were preprocessed and saved as" f" {self.out_preprocessed} with shape {out.shape}")
-        self.preprocessed_data = out
-
-
-class ZuCoProcessor(EyetrackingProcessor):
-    """ Reader that converts ZuCo v1/v2 .mat files in a preprocessed format. """
-
-    def __init__(self, data_dir, version="zuco1-nr", **kwargs):
-        self.version = version
-        self.mat_files_path = os.path.join(data_dir, version)
-        out_filename = f"preprocessed_{version}.tsv"
-        ref_participant = "YDR" if version == "zuco2" else "ZKB"
-        super(ZuCoProcessor, self).__init__(
-            data_dir, data_filename="", out_filename=out_filename, ref_participant=ref_participant, **kwargs
-        )
-
-    def create_preprocessed_dataset(self):
-        if self.version in ["zuco1-nr", "zuco1-sr"]:
-            df = read_zuco1_mat(self.mat_files_path)
-        elif self.version == "zuco2":
-            df = read_zuco2_mat(self.mat_files_path)
-        else:
-            raise AttributeError("Selected version of ZuCo does not exist.")
-        # Clean up words since we need to rely on whitespaces for aligning
-        # sentences with tokens.
-        logger.info("Preprocessing values for the dataset...")
-        df["content"] = [str(w).replace(" ", "") for w in df["content"]]
-        word_skip = [int(v) for v in list(df["FXC"].isna())]
-        # If FXC is NaN, it corresponds to 0 fixations
-        df["FXC"] = df["FXC"].fillna(0)
-        # Create new fields for the dataset
-        word_id = [f"{x}-{y}-{z}" for x, y, z in zip(df["task_id"], df["sent_idx"], df["word_idx"].astype("int32"))]
-        length = [len(str(x)) for x in df["content"]]
-        mean_fix_dur = []
-        for x, y in zip(df["TRT"], df["FXC"]):
-            if pd.isna(x) or pd.isna(y):
-                mean_fix_dur.append(np.nan)
-            elif y == 0:
-                mean_fix_dur.append(0)
-            else:
-                mean_fix_dur.append(x / y)
-        refix_count = [max(x - 1, 0) if pd.notna(x) else np.nan for x in df["FXC"]]
-        reread_prob = [x > 1 if pd.notna(x) else np.nan for x in df["FXC"]]
-        # Since here we do not have the selective go past time as for GECO,
-        # we approximate it using go-past time minus gaze duration.
-        # Note that this approximation is a lower bound in case of multiple regressions.
-        tot_regr_from_dur = []
-        for x, y in zip(df["GPT"], df["GD"]):
-            if pd.isna(x) or pd.isna(y):
-                tot_regr_from_dur.append(np.nan)
-            else:
-                tot_regr_from_dur.append(max(x - y, 0))
-        # We do not have POS info for ZuCo corpora
-        pos = ["UNK" for x in range(len(df))]
-        fix_prob = [1 - x for x in word_skip]
-        # Format taken from Hollenstein et al. 2019 "NER at First Sight"
-        out = pd.DataFrame(
-            {
-                # Identifiers
-                "participant": df["participant"],
-                "text_id": df["task_id"],  # Name of the recorded reading portion
-                "sentence_id": df["sent_idx"],  # Absolute sentence position in reading portion
-                # AOI-level measures
-                "word_id": word_id,
-                "word": df["content"],
-                "length": length,
-                "pos": pos,
-                # Basic measures
-                "fix_count": df["FXC"],
-                "fix_prob": fix_prob,
-                "mean_fix_dur": mean_fix_dur,
-                # Early measures
-                "first_fix_dur": df["FFD"],
-                "first_pass_dur": df["GD"],
-                # Late measures
-                "tot_fix_dur": df["TRT"],
-                "refix_count": refix_count,
-                "reread_prob": reread_prob,
-                # Context measures
-                "tot_regr_from_dur": tot_regr_from_dur,
-                "n-2_fix_prob": ([0, 0] + fix_prob)[: len(df)],
-                "n-1_fix_prob": ([0] + fix_prob)[: len(df)],
-                "n+1_fix_prob": (fix_prob + [0])[1:],
-                "n+2_fix_prob": (fix_prob + [0, 0])[2:],
-                "n-2_fix_dur": ([0, 0] + list(df["TRT"]))[: len(df)],
-                "n-1_fix_dur": ([0] + list(df["TRT"]))[: len(df)],
-                "n+1_fix_dur": (list(df["TRT"]) + [0])[1:],
-                "n+2_fix_dur": (list(df["TRT"]) + [0, 0])[2:],
-            }
-        )
-        # Convert to correct data types
-        out = out.astype(self.out_types_word)
-        # Caching preprocessed dataset for next Processor calls
-        save_tsv(out, self.out_preprocessed)
-        logger.info(
-            f"{self.version} data were preprocessed and saved as" f" {self.out_preprocessed} with shape {out.shape}"
-        )
-        self.preprocessed_data = out
 
 
 def fillna_min(columns, df):

@@ -62,37 +62,6 @@ GECO_POS_MAP = {
     "BBW": "ADV",
 }
 
-# Dundee Corpus Eyetracking Constants
-
-# Columns to be kept while importing Excel ET datasets
-DUNDEE_DATA_COLS = [
-    "Participant",
-    "Itemno",
-    "SentenceID",
-    "ID",
-    "WORD",
-    "WLEN",
-    "WNUM",
-    "UniversalPOS",
-    "nFix",
-    "Fix_prob",
-    "Mean_fix_dur",
-    "First_fix_dur",
-    "First_pass_dur",
-    "Tot_fix_dur",
-    "nRefix",
-    "Re-read_prob",
-    "Tot_regres_from_dur",
-    "n-1_fix_prob",
-    "n+1_fix_prob",
-    "n-2_fix_prob",
-    "n+2_fix_prob",
-    "n-1_fix_dur",
-    "n+1_fix_dur",
-    "n-2_fix_dur",
-    "n+2_fix_dur",
-]
-
 # Generic Eyetracking Dataset Constants
 
 # Data types for the preprocessed output dataframe (per-participant scores)

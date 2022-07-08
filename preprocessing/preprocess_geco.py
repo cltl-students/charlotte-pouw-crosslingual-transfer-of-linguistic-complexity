@@ -1,39 +1,89 @@
+from utils import scale
+import argparse
+import logging
+import os
+import string
+
 import pandas as pd
-import numpy as np
-import csv
+from sklearn.model_selection import train_test_split
 
-from utils import get_avg_word_length_with_punct, get_avg_token_freq, get_n_low_freq_words, scale
+import sys
+sys.path.append('C:/Users/charl/Documents/GitHub/charlotte-pouw-crosslingual-transfer-of-linguistic-complexity/src/')
 
-# Load GECO sentences and eye-tracking data
-geco_train_english = pd.read_csv('data/geco/english/train.tsv', sep='\t', encoding='utf8', quoting=csv.QUOTE_NONE)
-geco_train_english = geco_train_english[['participant', 'text_id', 'sentence_id', 'text', 'token_count',
-                                         'fix_count', 'fix_prob', 'mean_fix_dur', 'first_fix_dur', 'first_pass_dur',
-                                         'tot_fix_dur', 'refix_count', 'reread_prob', 'tot_regr_from_dur']]
+from lingcomp.data_utils import GECOProcessor
+from lingcomp.script_utils import save_tsv, train_test_split_sentences
 
-# Load corresponding linguistic features
-en_geco_train_feats = pd.read_csv('data/geco/english/train_feats.csv', sep='\t')
-en_geco_train_feats = en_geco_train_feats.drop('Filename', axis=1)
-en_geco_train_feats.reset_index(drop=True)
+def preprocess_geco_data(args):
+    dfs = []
+    processor = GECOProcessor(
+        args.data_dir,
+        fillna=args.fillna_strategy,
+    )
+    df = processor.get_sentence_data(
+        args.eyetracking_participant,
+        min_len=args.eyetracking_min_sent_len,
+        max_len=args.eyetracking_max_sent_len,
+        )
+    # Common format across sentence-level datasets used in FARM
+    df.rename(columns={"sentence": "text"}, inplace=True)
+    dfs.append(df)
+    if len(dfs) > 1:
+        df = pd.concat(dfs, ignore_index=True)
+        df = reindex_sentence_df(df)
 
-# Concatenate the two dataframes
-en_train_cols = geco_train_english.columns.to_list() + en_geco_train_feats.columns.to_list()
-en_train_concatenation = np.concatenate([geco_train_english, en_geco_train_feats], axis=1)
-en_geco_train_full = pd.DataFrame(en_train_concatenation, columns=en_train_cols)
+    # add scaled features
+    for feature in ['first_pass_dur', 'fix_count', 'tot_fix_dur', 'tot_regr_from_dur']:
+        df[f'scaled_{feature}'] = scale(df[feature].tolist())
 
-# Add custom frequency and length columns to the train dataframe
-en_geco_train_full['avg_token_freq'] = get_avg_token_freq(en_geco_train_full['text'].tolist(), 'English')
-en_geco_train_full['n_low_freq_words'] = get_n_low_freq_words(en_geco_train_full['text'].tolist(), 'English')
-en_geco_train_full['avg_word_length'] = get_avg_word_length_with_punct(en_geco_train_full['text'].tolist())
+    out = os.path.join(args.out_dir, f"preprocessed_geco_sentence_level.tsv")
+    save_tsv(df, out)
+    logging.info(f"Eyetracking data were preprocessed and saved as" f" {out} with shape {df.shape}")
+    return df
 
-# Define features that we want to scale
-target_features = ['first_pass_dur', 'fix_count', 'tot_fix_dur', 'tot_regr_from_dur',          # eye-tracking
-                   'token_count', 'avg_word_length',                                           # surface
-                   'lexical_density',                                                          # morpho-syntactic
-                   'avg_max_depth', 'avg_links_len', 'max_links_len', 'verbal_head_per_sent',  # syntactic
-                   'avg_token_freq', 'n_low_freq_words']                                       # frequency
 
-# Add columns with scaled features to the frame
-for feature in target_features:
-    en_geco_train_full[f'scaled_{feature}'] = scale(en_geco_train_full[feature].tolist())
+def do_train_test_split(args):
+    logging.info("Performing train-test split...")
+    folder = f"{args.data_dir}/train_test"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        train, test = train_test_split(args.et, test_size=args.test_size, random_state=args.seed)
+        save_tsv(train, f"{folder}/train.tsv")
+        save_tsv(test, f"{folder}/test.tsv")
+        logging.info(f"Train-test data saved in {folder}")
+    else:
+        logging.info("Train-test data already exist in path, not overriding them.")
 
-en_geco_train_full.to_csv('data/geco/english/train_preprocessed.tsv', encoding='utf8', sep='\t', quoting=csv.QUOTE_NONE, index=False)
+def preprocess():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eyetracking", action="store_true", default=True)
+    parser.add_argument("--data_dir", type=str, default="./data/geco")
+    parser.add_argument("--out_dir", type=str, default="./data/geco/preprocessed")
+    parser.add_argument("--do_train_test_split", default=True, action="store_true")
+    parser.add_argument("--test_size", type=float, default=0.1)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--eyetracking_participant",
+        type=str,
+        default="avg",
+        help="Participant selected for eyetracking scores. Default is avg of all participants.",
+    )
+    parser.add_argument("--eyetracking_min_sent_len", type=int, default=5)
+    parser.add_argument("--eyetracking_max_sent_len", type=int, default=45)
+    parser.add_argument(
+        "--fillna_strategy",
+        default="zero",
+        type=str,
+        help="Specifies the NaN filling strategy for eyetracking processors.",
+        choices=["none", "zero", "min_participant", "mean_participant", "max_participant"],
+    )
+    args = parser.parse_args()
+
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir)
+    if args.eyetracking:
+        args.et = preprocess_geco_data(args)
+    if args.do_train_test_split:
+        do_train_test_split(args)
+
+if __name__ == "__main__":
+    preprocess()
