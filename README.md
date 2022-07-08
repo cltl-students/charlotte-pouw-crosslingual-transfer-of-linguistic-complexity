@@ -11,12 +11,15 @@ This folder contains notebooks to analyse the data and to plot the results.
 
 ## `data`
 - `geco`
+
 Folder for data from the Ghent Eye-tracking Corpus (Cop et al., 2017). The files `MonolingualReadingData` and `EnglishReadingMaterials` should be placed in this folder and can be downloaded here: https://expsy.ugent.be/downloads/geco/
 
 - `meco`
+
 Folder for data from the Multilingual Eye-tracking Corpus (Siegelman et al., 2022). The files `sentence_data.csv` and `supp texts.csv` should be placed in this folder and can be downloaded here: https://osf.io/3527a/
 
 - `pud`
+
 Folder for data from Parellel Universal Dependencies (Zeman et al., 2017). The CoNLL files from `UD_Korean-PUD`, `UD_English-PUD` and `UD_Turkish-PUD` should be placed in this folder and can be downloaded here: https://github.com/UniversalDependencies
 
 ## `preprocessing`
