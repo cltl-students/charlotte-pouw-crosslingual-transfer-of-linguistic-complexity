@@ -24,11 +24,11 @@ Folder for data from Parellel Universal Dependencies (Zeman et al., 2017). The C
 
 ## `preprocessing`
 
-## `results`
+To preprocess the data, run the following scripts (which are located in the `preprocessing` folder):
 
-## `scripts`
-
-## `src`
+- meco --> first, run `extract_meco_text.py` and subsequently run `preprocess_meco.py`
+- geco --> run `preprocess_geco.py`
+- pud --> run `preprocess_pud.py`
 
 # Running the code
 
