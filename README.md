@@ -1,8 +1,5 @@
 # Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour
-Repository for the research master thesis project "Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour". The work was carried out by Charlotte Pouw and supervised by dr. Lisa Beinborn.
-
-# Abstract
-This thesis investigates if a multilingual transformer model (XLM-RoBERTa, Conneau et al., 2020) develops a sensitivity to linguistic complexity when it learns to predict patterns of human reading behaviour. After training the model on eye-tracking data of English readers, we find that it can accurately predict eye movement behaviour associated with 1) sentences that are more complex than those seen during training, and 2) languages that are not seen seen during training. These generalization abilities indicate that the model established a link between linguistic complexity and eye movement patterns, and that the learned correlations can be transferred to other languages. We provide further evidence for this by probing the linguistic knowledge that is encoded in the model's final-layer representations, both before and after fine-tuning on eye-tracking data. We find that features associated with the structural complexity of a sentence are better encoded after fine-tuning.
+Repository for the research master thesis project "Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour". The work was carried out by Charlotte Pouw and supervised by dr. Lisa Beinborn. The code for multi-task learning was adapted from the FARM framework \citep{deepset-2019} by \cite{sarti-etal-2021-looks} and can be found in the following repository: \url{https://github.com/gsarti/interpreting-complexity}
 
 # Structure
 
