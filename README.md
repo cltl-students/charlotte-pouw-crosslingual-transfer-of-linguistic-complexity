@@ -1,5 +1,5 @@
 # Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour
-Repository for the research master thesis project "Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour". The work was carried out by Charlotte Pouw and supervised by dr. Lisa Beinborn. The code for multi-task learning was adapted from the FARM framework \citep{deepset-2019} by \cite{sarti-etal-2021-looks} and can be found in the following repository: \url{https://github.com/gsarti/interpreting-complexity}
+Repository for the research master thesis project "Cross-lingual Transfer of Correlations between Linguistic Complexity and Human Reading Behaviour". The work was carried out by Charlotte Pouw and supervised by dr. Lisa Beinborn. The code for multi-task learning was adapted from the FARM framework by Sarti et al. (2021) and can be found in the following repository: \url{https://github.com/gsarti/interpreting-complexity}
 
 # Structure
 
